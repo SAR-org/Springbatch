@@ -1,10 +1,12 @@
 package com.sar.spring.model;
 
 import javax.persistence.Entity;
+import javax.persistence.Id;
 
 @Entity(name="employee")
 public class Employee {
 	
+	@Id
 	private String employeeId;
 	private String firstName;
 	private String lastName;
@@ -39,6 +41,11 @@ public class Employee {
 	}
 	public void setGender(String gender) {
 		this.gender = gender;
+	}
+	@Override
+	public String toString() {
+		return "Employee [employeeId=" + employeeId + ", firstName=" + firstName + ", lastName=" + lastName
+				+ ", emailId=" + emailId + ", gender=" + gender + "]";
 	}
 	
 	

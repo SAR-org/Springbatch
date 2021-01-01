@@ -7,6 +7,7 @@ import org.springframework.batch.core.Step;
 import org.springframework.batch.core.configuration.annotation.JobBuilderFactory;
 import org.springframework.batch.core.configuration.annotation.StepBuilderFactory;
 import org.springframework.batch.core.configuration.annotation.StepScope;
+import org.springframework.batch.core.step.builder.SimpleStepBuilder;
 import org.springframework.batch.item.ItemProcessor;
 import org.springframework.batch.item.ItemReader;
 import org.springframework.batch.item.database.BeanPropertyItemSqlParameterSourceProvider;
@@ -36,18 +37,14 @@ public class DemoJob {
 	private StepBuilderFactory stepBuilderFactory;
 	@Autowired
 	private DataSource dataSource;
-	@Autowired
-	private EmployeeProcessor employeeProcessor;
 
 	@Bean
-	@StepScope
 	public Job flatFileJob() {
 		return this.jobBuilderFactory.get("flatFileJob").start(flatFileStep1()).build();
 	}
-
 	@Bean
 	public Step flatFileStep1() {
-		return this.stepBuilderFactory.get("step1").<EmployeeDTO, Employee>chunk(5).reader(employeeReader()).processor(employeeProcessor)
+		return this.stepBuilderFactory.get("step1").<EmployeeDTO, Employee>chunk(5).reader(employeeReader()).processor(new EmployeeProcessor())
 				.writer(employeeDBWriterDefault()).build();
 	}
 
@@ -55,16 +52,19 @@ public class DemoJob {
 		JdbcBatchItemWriter<Employee> itemWriter = new JdbcBatchItemWriter<Employee>();
 		itemWriter.setDataSource(dataSource);
 		itemWriter.setSql(
-				"INSERT INTO employee(employee_id,first_name,last_name,email,gender) VALUES(:employeeId, :firstName, :lastName, :emailId, :gender");
+				"INSERT INTO employee(employee_id,first_name,last_name,email_id,gender) VALUES(:employeeId, :firstName, :lastName, :emailId, :gender)");
 		itemWriter.setItemSqlParameterSourceProvider(new BeanPropertyItemSqlParameterSourceProvider<Employee>());
+		System.out.println("Item writer====================>>>>"+dataSource);
+		itemWriter.afterPropertiesSet ();
 		return itemWriter;
 	}
 
 	@Bean
-	@StepScope
 	public FlatFileItemReader<EmployeeDTO> employeeReader() {
 		FlatFileItemReader<EmployeeDTO> reader = new FlatFileItemReader<EmployeeDTO>();
-		reader.setResource(inputFileResource(null));
+		
+		reader.setResource(new ClassPathResource("employee.csv"));
+		reader.setLinesToSkip(1);
 		reader.setLineMapper(new DefaultLineMapper<EmployeeDTO>() {
 			{
 				setLineTokenizer(new DelimitedLineTokenizer() {
@@ -78,10 +78,4 @@ public class DemoJob {
 		
 		return reader;
 	}
-
-	@Bean
-	public Resource inputFileResource(@Value("#{jobParameters[fileName]}") final String fileName) {
-		return new ClassPathResource(fileName);
-	}
-
 }
