@@ -6,27 +6,21 @@ import org.springframework.batch.core.Job;
 import org.springframework.batch.core.Step;
 import org.springframework.batch.core.configuration.annotation.JobBuilderFactory;
 import org.springframework.batch.core.configuration.annotation.StepBuilderFactory;
-import org.springframework.batch.core.configuration.annotation.StepScope;
-import org.springframework.batch.core.step.builder.SimpleStepBuilder;
-import org.springframework.batch.item.ItemProcessor;
-import org.springframework.batch.item.ItemReader;
 import org.springframework.batch.item.database.BeanPropertyItemSqlParameterSourceProvider;
 import org.springframework.batch.item.database.JdbcBatchItemWriter;
 import org.springframework.batch.item.file.FlatFileItemReader;
 import org.springframework.batch.item.file.mapping.DefaultLineMapper;
 import org.springframework.batch.item.file.transform.DelimitedLineTokenizer;
-import org.springframework.batch.item.file.transform.LineTokenizer;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.io.ClassPathResource;
-import org.springframework.core.io.Resource;
 
 import com.sar.spring.dto.EmployeeDTO;
 import com.sar.spring.mapper.EmployeeFileRowMapper;
 import com.sar.spring.model.Employee;
 import com.sar.spring.processor.EmployeeProcessor;
+import com.sar.spring.writer.EmployeeDBWriter;
 
 @Configuration
 public class DemoJob {
@@ -37,6 +31,9 @@ public class DemoJob {
 	private StepBuilderFactory stepBuilderFactory;
 	@Autowired
 	private DataSource dataSource;
+	
+	@Autowired
+	private EmployeeDBWriter employeeDBWriter;
 
 	@Bean
 	public Job flatFileJob() {
@@ -44,8 +41,12 @@ public class DemoJob {
 	}
 	@Bean
 	public Step flatFileStep1() {
-		return this.stepBuilderFactory.get("step1").<EmployeeDTO, Employee>chunk(5).reader(employeeReader()).processor(new EmployeeProcessor())
-				.writer(employeeDBWriterDefault()).build();
+		return this.stepBuilderFactory.get("step1").<EmployeeDTO, Employee>chunk(5)
+				.reader(employeeReader())
+				.processor(new EmployeeProcessor())
+				//.writer(employeeDBWriterDefault()) this is using defaul writer
+				.writer(employeeDBWriter) // using a custom database writer
+				.build();
 	}
 
 	private JdbcBatchItemWriter<Employee>  employeeDBWriterDefault() {
@@ -54,7 +55,6 @@ public class DemoJob {
 		itemWriter.setSql(
 				"INSERT INTO employee(employee_id,first_name,last_name,email_id,gender) VALUES(:employeeId, :firstName, :lastName, :emailId, :gender)");
 		itemWriter.setItemSqlParameterSourceProvider(new BeanPropertyItemSqlParameterSourceProvider<Employee>());
-		System.out.println("Item writer====================>>>>"+dataSource);
 		itemWriter.afterPropertiesSet ();
 		return itemWriter;
 	}
